@@ -1,7 +1,7 @@
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 
 function doGet(e) {
-  if (e.parameter.action === "getItems") {
+  if (e.parameter.action === "BaseDeItens") {
     try {
       const ws = ss.getSheetByName("BaseDeItens");
       const items = ws.getRange(2, 1, ws.getLastRow() - 1, 2).getValues();
