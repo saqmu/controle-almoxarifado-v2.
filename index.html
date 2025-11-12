@@ -51,11 +51,8 @@
     </div>
 
     <script>
-        // PASSO MAIS IMPORTANTE:
-        // COLE A URL DO SEU SCRIPT DO GOOGLE (QUE TERMINA COM /exec) DENTRO DAS ASPAS ABAIXO.
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3IBITJHtbRrqgJumnXcAGRqri-k0oSvbEJxQg8geSQM5xp3hzhLuS42sT9LLC0o_t/exec"; 
+        const SCRIPT_URL = "COLE_AQUI_O_SEU_LINK_DO_APLICATIVO_DA_WEB"; 
 
-        // Restante do código (não precisa mexer)
         const loadingDiv = document.getElementById('loading');
         const form = document.getElementById('stock-form');
         const itemsListDiv = document.getElementById('items-list');
@@ -70,13 +67,14 @@
             fetch(`${SCRIPT_URL}?action=getItems`)
                 .then(response => response.json())
                 .then(items => {
+                    if(items.error) { throw new Error(items.error); }
                     allItems = items;
                     renderItems(allItems);
                     loadingDiv.style.display = 'none';
                     form.style.display = 'block';
                 })
                 .catch(error => {
-                    loadingDiv.innerHTML = "<h2>Erro ao carregar itens. Verifique o link do SCRIPT_URL e as permissões.</h2>";
+                    loadingDiv.innerHTML = `<h2>Erro ao carregar itens. Verifique o link SCRIPT_URL e se a página "BaseDeItens" existe.</h2><p style="color:red;">${error.toString()}</p>`;
                     console.error('Fetch Error:', error);
                 });
         }
@@ -162,11 +160,13 @@
 
             fetch(SCRIPT_URL, {
                 method: 'POST',
+                mode: 'cors', // Adicionado para clareza
                 body: JSON.stringify(data),
                 headers: { 'Content-Type': 'application/json' }
             })
-            .then(response => response.text())
+            .then(response => response.json())
             .then(result => {
+                if(result.status !== 'success') { throw new Error(result.message); }
                 form.style.display = 'none';
                 successMsg.textContent = 'Movimentação registrada com sucesso!';
                 successMsg.style.display = 'block';
@@ -174,7 +174,7 @@
             })
             .catch(error => {
                 console.error('Submit Error:', error);
-                errorMsg.textContent = `Erro ao enviar: ${error}. Tente novamente.`;
+                errorMsg.textContent = `Erro ao enviar: ${error.message}. Tente novamente.`;
                 errorMsg.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Registrar Movimentação';
