@@ -1,61 +1,187 @@
-```javascript
-// Define a planilha ativa como uma variável global para ser usada em todas as funções
-const ss = SpreadsheetApp.getActiveSpreadsheet();
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Controle de Estoque V2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background: linear-gradient(135deg, #0d47a1, #1e88e5); background-attachment: fixed; color: #333; }
+        h1 { color: white; text-align: center; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4); }
+        #main-container { background-color: rgba(255, 255, 255, 0.98); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        #loading, #success-message, #error-message { text-align: center; padding: 20px; font-size: 1.2em; border-radius: 8px; margin-top: 15px; display: none; }
+        #loading { color: #0d47a1; }
+        #success-message { background-color: #d4edda; color: #155724; }
+        #error-message { background-color: #f8d7da; color: #721c24; }
+        #items-list { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 8px; margin-top: 15px; }
+        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; }
+        .item-row:last-child { border-bottom: none; }
+        .item-row input[type="checkbox"] { width: 25px; height: 25px; }
+        .item-row label { flex-grow: 1; margin: 0 10px; }
+        .item-row input[type="number"] { width: 70px; text-align: center; padding: 8px; }
+        input, select, button { width: 100%; padding: 14px; margin-top: 15px; box-sizing: border-box; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; }
+        button { background-color: #005A8D; color: white; font-weight: bold; border: none; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #004a74; }
+        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        #search-box { margin-bottom:10px; }
+    </style>
+</head>
+<body>
+    <h1>Registro de Movimentação</h1>
 
-/**
- * Esta função é acionada quando o App (página web) faz uma requisição do tipo GET.
- * Ela tem duas funções:
- * 1. Se o App pedir a lista de produtos, ela lê a página 'BaseDeItens' e retorna a lista.
- * 2. Se for aberta diretamente, ela carrega o arquivo 'index.html'.
- */
-function doGet(e) {
-  // Verifica se o App está pedindo a lista de itens.
-  if (e.parameter.action === "getItems") {
-    const ws = ss.getSheetByName("BaseDeItens");
-    // Pega todos os dados da página, ignorando o cabeçalho.
-    const items = ws.getRange(2, 1, ws.getLastRow() - 1, 2).getValues();
-    // Converte os dados para um formato JSON e retorna como texto para o App.
-    return ContentService.createTextOutput(JSON.stringify(items)).setMimeType(ContentService.MimeType.JSON);
-  }
-  // Se não for para pegar itens, carrega a página HTML principal do App.
-  return HtmlService.createHtmlOutputFromFile('index');
-}
+    <div id="main-container">
+        <div id="loading"><h2>Carregando lista de produtos...</h2></div>
 
-/**
- * Esta função é acionada quando o App envia dados (faz uma requisição POST).
- * Ela recebe os dados do formulário e os registra na página 'LogDeMovimentações'.
- */
-function doPost(e) {
-  try {
-    const ws = ss.getSheetByName("LogDeMovimentações");
-    
-    // Os dados vêm em um formato de texto (JSON), então precisamos 'traduzi-los'.
-    const data = JSON.parse(e.postData.contents);
-    const items = data.items;
-    
-    // Pega o nome do colaborador e o tipo de movimentação, que são os mesmos para todos os itens.
-    const nomeColaborador = data.nome_colaborador;
-    const tipoMovimentacao = data.tipo;
-    const dataHora = new Date(); // Cria um registro de data e hora atual.
+        <form id="stock-form" style="display:none;">
+            <input type="text" id="search-box" placeholder="🔎 Pesquisar item...">
 
-    // Usa um loop 'forEach' para processar cada item que o trabalhador selecionou.
-    items.forEach(item => {
-      ws.appendRow([
-        dataHora,
-        item.codigo,
-        item.nome,
-        tipoMovimentacao,
-        item.quantidade,
-        nomeColaborador
-      ]);
-    });
+            <div id="items-list">
+                <!-- A lista de itens será inserida aqui pelo JavaScript -->
+            </div>
 
-    // Retorna uma mensagem de sucesso para o App.
-    return ContentService.createTextOutput("Dados inseridos com sucesso!");
+            <select id="tipo" name="tipo">
+                <option value="Saída do Estoque">Saída do Estoque</option>
+                <option value="Entrada no Estoque">Entrada no Estoque</option>
+            </select>
+            <input type="text" id="nome-colaborador" placeholder="Seu Nome" required>
+            
+            <button type="submit" id="submit-btn">Registrar Movimentação</button>
+        </form>
+        
+        <div id="success-message"></div>
+        <div id="error-message"></div>
+    </div>
 
-  } catch (error) {
-    // Se algo der errado, retorna uma mensagem de erro detalhada.
-    return ContentService.createTextOutput("Erro: " + error.toString());
-  }
-}
-```
+    <script>
+        // PASSO MAIS IMPORTANTE:
+        // COLE A URL DO SEU SCRIPT DO GOOGLE (QUE TERMINA COM /exec) DENTRO DAS ASPAS ABAIXO.
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxLGFY7yti3FkcTX6MS6iEIeKhHXkMTukfa3PUlwGwOXDQQLpEsz9_MrWNtoYmVLFfA/exec"; 
+
+        // Restante do código (não precisa mexer)
+        const loadingDiv = document.getElementById('loading');
+        const form = document.getElementById('stock-form');
+        const itemsListDiv = document.getElementById('items-list');
+        const submitBtn = document.getElementById('submit-btn');
+        const successMsg = document.getElementById('success-message');
+        const errorMsg = document.getElementById('error-message');
+        const searchBox = document.getElementById('search-box');
+        let allItems = [];
+
+        function loadItems() {
+            loadingDiv.style.display = 'block';
+            fetch(`${SCRIPT_URL}?action=getItems`)
+                .then(response => response.json())
+                .then(items => {
+                    allItems = items;
+                    renderItems(allItems);
+                    loadingDiv.style.display = 'none';
+                    form.style.display = 'block';
+                })
+                .catch(error => {
+                    loadingDiv.innerHTML = "<h2>Erro ao carregar itens. Verifique o link do SCRIPT_URL e as permissões.</h2>";
+                    console.error('Fetch Error:', error);
+                });
+        }
+
+        function renderItems(items) {
+            itemsListDiv.innerHTML = '';
+            items.forEach(item => {
+                const codigo = item[0];
+                const nome = item[1];
+
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                row.innerHTML = `
+                    <input type="checkbox" id="${codigo}" value="${codigo}" data-nome="${nome}">
+                    <label for="${codigo}">${nome} (${codigo})</label>
+                    <input type="number" min="1" placeholder="Qtd" disabled style="background-color: #f0f0f0;">
+                `;
+                itemsListDiv.appendChild(row);
+            });
+        }
+
+        searchBox.addEventListener('keyup', () => {
+            const searchTerm = searchBox.value.toLowerCase();
+            const filteredItems = allItems.filter(item => 
+                item[1].toLowerCase().includes(searchTerm) || 
+                item[0].toLowerCase().includes(searchTerm)
+            );
+            renderItems(filteredItems);
+        });
+
+        itemsListDiv.addEventListener('change', event => {
+            if (event.target.type === 'checkbox') {
+                const quantityInput = event.target.nextElementSibling.nextElementSibling;
+                if (event.target.checked) {
+                    quantityInput.disabled = false;
+                    quantityInput.required = true;
+                    quantityInput.style.backgroundColor = '#fff';
+                    quantityInput.focus();
+                } else {
+                    quantityInput.disabled = true;
+                    quantityInput.required = false;
+                    quantityInput.style.backgroundColor = '#f0f0f0';
+                    quantityInput.value = '';
+                }
+            }
+        });
+
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            const selectedItems = [];
+            const checkboxes = itemsListDiv.querySelectorAll('input[type="checkbox"]:checked');
+            
+            checkboxes.forEach(cb => {
+                const quantityInput = cb.nextElementSibling.nextElementSibling;
+                if (quantityInput.value && parseInt(quantityInput.value) > 0) {
+                    selectedItems.push({
+                        codigo: cb.value,
+                        nome: cb.dataset.nome,
+                        quantidade: quantityInput.value
+                    });
+                }
+            });
+
+            if (selectedItems.length === 0) {
+                alert('Por favor, selecione pelo menos um item e informe a quantidade.');
+                return;
+            }
+
+            const nomeColaborador = document.getElementById('nome-colaborador').value;
+            if (!nomeColaborador) {
+                alert('Por favor, preencha o seu nome.');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
+
+            const data = {
+                tipo: document.getElementById('tipo').value,
+                nome_colaborador: nomeColaborador,
+                items: selectedItems
+            };
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.text())
+            .then(result => {
+                form.style.display = 'none';
+                successMsg.textContent = 'Movimentação registrada com sucesso!';
+                successMsg.style.display = 'block';
+                setTimeout(() => location.reload(), 2500);
+            })
+            .catch(error => {
+                console.error('Submit Error:', error);
+                errorMsg.textContent = `Erro ao enviar: ${error}. Tente novamente.`;
+                errorMsg.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Registrar Movimentação';
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', loadItems);
+    </script>
+</body>
+</html>
