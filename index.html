@@ -21,7 +21,6 @@
         #message { text-align: center; padding: 10px; margin-top: 15px; border-radius: 5px; display: none; }
         .success { background-color: #d4edda; color: #155724; }
         .error { background-color: #f8d7da; color: #721c24; }
-        /* Estilos para o novo histórico */
         #history-container { margin-top: 30px; border-top: 2px solid #ccc; padding-top: 15px; }
         #history-container h2 { margin-bottom: 10px; }
         .history-item { font-size: 0.9em; padding: 5px; border-bottom: 1px solid #f0f0f0; }
@@ -45,8 +44,6 @@
             <div id="item-list"></div>
             <button id="submit-btn">Registrar Movimentação</button>
             <div id="message"></div>
-
-            <!-- Seção do Histórico -->
             <div id="history-container">
                 <h2>Últimas Movimentações</h2>
                 <div id="history-list">Carregando histórico...</div>
@@ -55,8 +52,8 @@
     </div>
 
     <script>
-        // CERTIFIQUE-SE DE QUE SUA URL CORRETA ESTÁ AQUI
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgP_7uCgKz2bnpfktY9g-QTb0cNKy8RMp9bvTUKKIUMsmKlHeiBrl-RHuqlUZ2mx9R/exec";
+        // ** COLOQUE AQUI A SUA URL MAIS RECENTE, GERADA PELO SCRIPT NOVO **
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIPIcSo20UWdJ-q_gxg5wSdZ-olLm5FaN2Zhn-nvHt5rOGYwnTODC-a66V2GW7fSKi/exec";
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchItems();
@@ -98,9 +95,8 @@
                         quantityWrapper.style.display = event.target.checked ? 'flex' : 'none';
                     }
                 });
-
             } catch (error) {
-                document.getElementById('loader').innerHTML = `<strong>Erro ao carregar itens:</strong> ${error.message}. <br>Verifique a URL do Script, as permissões e o nome da página 'BaseDeItens'.`;
+                document.getElementById('loader').innerHTML = `<strong>Erro:</strong> ${error.message}. Verifique a URL do Script, permissões e nomes das páginas.`;
                 document.getElementById('loader').style.color = 'red';
             }
         }
@@ -118,16 +114,14 @@
                     historyList.innerHTML = '<p>Nenhuma movimentação registrada ainda.</p>';
                     return;
                 }
-
                 data.forEach(row => {
                     const [timestamp, codigo, nome, tipo, qtd, colaborador] = row;
                     const date = new Date(timestamp).toLocaleString('pt-BR');
                     const historyDiv = document.createElement('div');
                     historyDiv.className = 'history-item';
-                    historyDiv.innerHTML = `<strong>${colaborador}</strong> registrou <strong>${tipo}</strong> de <strong>${qtd}x</strong> ${nome} <small>(${date})</small>`;
+                    historyDiv.innerHTML = `<strong>${colaborador}</strong>: ${tipo} de ${qtd}x ${nome} <small>(${date})</small>`;
                     historyList.appendChild(historyDiv);
                 });
-
             } catch (error) {
                 historyList.innerHTML = `<p style="color:red;">Erro ao carregar histórico: ${error.message}</p>`;
             }
@@ -160,13 +154,9 @@
             }
 
             let confirmationMessage = `Confirma a movimentação de ${tipoMovimentacao} para "${nomeColaborador}"?\n\nItens:\n`;
-            selectedItems.forEach(item => {
-                confirmationMessage += `- ${item.quantidade}x ${item.nome}\n`;
-            });
+            selectedItems.forEach(item => { confirmationMessage += `- ${item.quantidade}x ${item.nome}\n`; });
             
-            if (!window.confirm(confirmationMessage)) {
-                return;
-            }
+            if (!window.confirm(confirmationMessage)) { return; }
 
             const payload = { nomeColaborador, tipoMovimentacao, items: selectedItems };
             const btn = document.getElementById('submit-btn');
@@ -175,14 +165,12 @@
             btn.textContent = 'Enviando...';
 
             try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    redirect: 'follow',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                // Nova lógica de envio via GET
+                const dataString = encodeURIComponent(JSON.stringify(payload));
+                const url = `${SCRIPT_URL}?data=${dataString}`;
+
+                const response = await fetch(url);
                 
-                // Agora podemos ler a resposta do script
                 const result = await response.json();
                 if (result.status !== 'sucesso') {
                     throw new Error(result.message || 'Ocorreu um erro no servidor.');
@@ -195,7 +183,7 @@
                     quantityWrapper.style.display = 'none';
                 });
                 
-                fetchHistory(); // Atualiza o histórico
+                fetchHistory();
 
             } catch (error) {
                 showMessage(`Erro ao enviar: ${error.message}.`, 'error');
