@@ -21,6 +21,11 @@
         #message { text-align: center; padding: 10px; margin-top: 15px; border-radius: 5px; display: none; }
         .success { background-color: #d4edda; color: #155724; }
         .error { background-color: #f8d7da; color: #721c24; }
+        /* Estilos para o novo histórico */
+        #history-container { margin-top: 30px; border-top: 2px solid #ccc; padding-top: 15px; }
+        #history-container h2 { margin-bottom: 10px; }
+        .history-item { font-size: 0.9em; padding: 5px; border-bottom: 1px solid #f0f0f0; }
+        .history-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -40,6 +45,12 @@
             <div id="item-list"></div>
             <button id="submit-btn">Registrar Movimentação</button>
             <div id="message"></div>
+
+            <!-- Seção do Histórico -->
+            <div id="history-container">
+                <h2>Últimas Movimentações</h2>
+                <div id="history-list">Carregando histórico...</div>
+            </div>
         </div>
     </div>
 
@@ -49,6 +60,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchItems();
+            fetchHistory();
             document.getElementById('submit-btn').addEventListener('click', submitForm);
         });
 
@@ -92,6 +104,34 @@
                 document.getElementById('loader').style.color = 'red';
             }
         }
+        
+        async function fetchHistory() {
+            const historyList = document.getElementById('history-list');
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getHistory`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                historyList.innerHTML = '';
+                if (data.length === 0) {
+                    historyList.innerHTML = '<p>Nenhuma movimentação registrada ainda.</p>';
+                    return;
+                }
+
+                data.forEach(row => {
+                    const [timestamp, codigo, nome, tipo, qtd, colaborador] = row;
+                    const date = new Date(timestamp).toLocaleString('pt-BR');
+                    const historyDiv = document.createElement('div');
+                    historyDiv.className = 'history-item';
+                    historyDiv.innerHTML = `<strong>${colaborador}</strong> registrou <strong>${tipo}</strong> de <strong>${qtd}x</strong> ${nome} <small>(${date})</small>`;
+                    historyList.appendChild(historyDiv);
+                });
+
+            } catch (error) {
+                historyList.innerHTML = `<p style="color:red;">Erro ao carregar histórico: ${error.message}</p>`;
+            }
+        }
 
         async function submitForm() {
             const nomeColaborador = document.getElementById('collaborator-name').value.trim();
@@ -119,7 +159,6 @@
                 return;
             }
 
-            // Etapa de confirmação
             let confirmationMessage = `Confirma a movimentação de ${tipoMovimentacao} para "${nomeColaborador}"?\n\nItens:\n`;
             selectedItems.forEach(item => {
                 confirmationMessage += `- ${item.quantidade}x ${item.nome}\n`;
@@ -142,18 +181,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                 const result = await response.json(); // Tenta ler a resposta
-                if(result.status !== 'sucesso'){
-                  throw new Error(result.message || 'Ocorreu um erro desconhecido no servidor.');
+                
+                // Agora podemos ler a resposta do script
+                const result = await response.json();
+                if (result.status !== 'sucesso') {
+                    throw new Error(result.message || 'Ocorreu um erro no servidor.');
                 }
 
                 showMessage('Movimentação registrada com sucesso!', 'success');
-                // Limpa o formulário
-                 checkboxes.forEach(cb => {
+                checkboxes.forEach(cb => {
                     cb.checked = false;
                     const quantityWrapper = cb.closest('.item').querySelector('.quantity-wrapper');
                     quantityWrapper.style.display = 'none';
                 });
+                
+                fetchHistory(); // Atualiza o histórico
 
             } catch (error) {
                 showMessage(`Erro ao enviar: ${error.message}.`, 'error');
@@ -170,7 +212,6 @@
             messageDiv.style.display = 'block';
             setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
         }
-
     </script>
 </body>
 </html>
