@@ -8,14 +8,16 @@
         body { font-family: sans-serif; padding: 1em; background-color: #f4f4f4; }
         .container { max-width: 800px; margin: auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h1, h2 { text-align: center; color: #333; }
-        .controls { display: flex; justify-content: space-around; margin-bottom: 20px; }
-        .item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .controls { display: flex; justify-content: space-around; margin-bottom: 20px; align-items: center; }
+        .item { display: flex; flex-wrap: wrap; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
         .item:last-child { border-bottom: none; }
         .item input[type="checkbox"] { margin-right: 15px; width: 20px; height: 20px; }
         .item .details { flex-grow: 1; }
         .item .details strong { font-size: 1.1em; }
-        .item input[type="number"] { width: 70px; text-align: center; padding: 5px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        #submit-btn { display: block; width: 100%; padding: 15px; font-size: 1.2em; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .quantity-wrapper { margin-left: auto; padding-left: 15px; display: flex; align-items: center; }
+        .quantity-wrapper label { margin-right: 5px; }
+        .quantity-wrapper input[type="number"] { width: 60px; text-align: center; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+        #submit-btn { display: block; width: 100%; padding: 15px; font-size: 1.2em; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
         #message { text-align: center; padding: 10px; margin-top: 15px; border-radius: 5px; display: none; }
         .success { background-color: #d4edda; color: #155724; }
         .error { background-color: #f8d7da; color: #721c24; }
@@ -26,7 +28,7 @@
         <h1>Controle de Almoxarifado</h1>
         <div id="loader">Carregando itens...</div>
         <div id="app" style="display:none;">
-            <input type="text" id="collaborator-name" placeholder="Digite seu nome" style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box;">
+            <input type="text" id="collaborator-name" placeholder="Digite seu nome AQUI" required style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; font-size: 1.1em; text-align: center;">
             <div class="controls">
                 <input type="radio" id="saida" name="movimentacao" value="Saída" checked>
                 <label for="saida">Saída de Material</label>
@@ -42,12 +44,9 @@
     </div>
 
     <script>
-        // ESTA É A LINHA MAIS IMPORTANTE
-        // COLE AQUI A URL DO SEU SCRIPT PUBLICADO NO PASSO 2
+        // CERTIFIQUE-SE DE QUE SUA URL CORRETA ESTÁ AQUI
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwFtKCWLpbcqoGLOkg5R2Tuuhto8cURSYsYbwpA7fX7izqMQbItgZ-Ey068P6f9_T7/exec";
 
-        // O resto do código abaixo está pronto para funcionar.
-        
         document.addEventListener('DOMContentLoaded', () => {
             fetchItems();
             document.getElementById('submit-btn').addEventListener('click', submitForm);
@@ -58,13 +57,9 @@
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
                 
-                if (data.error) {
-                    throw new Error(data.error);
-                }
+                if (data.error) throw new Error(data.error);
                 
                 const itemList = document.getElementById('item-list');
-                const loader = document.getElementById('loader');
-                
                 data.forEach(item => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'item';
@@ -74,33 +69,35 @@
                             <strong>${item.nome}</strong><br>
                             <small>Código: ${item.codigo}</small>
                         </div>
-                        <input type="number" min="1" value="1" style="display:none;">
+                        <div class="quantity-wrapper" style="display:none;">
+                            <label for="qty-${item.codigo}">Qtd:</label>
+                            <input type="number" id="qty-${item.codigo}" min="1" value="1">
+                        </div>
                     `;
                     itemList.appendChild(itemDiv);
                 });
                 
-                loader.style.display = 'none';
+                document.getElementById('loader').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
                 
-                // Adiciona o evento para mostrar/esconder o campo de quantidade
                 itemList.addEventListener('change', (event) => {
                     if (event.target.type === 'checkbox') {
-                        const quantityInput = event.target.nextElementSibling.nextElementSibling;
-                        quantityInput.style.display = event.target.checked ? 'block' : 'none';
+                        const quantityWrapper = event.target.closest('.item').querySelector('.quantity-wrapper');
+                        quantityWrapper.style.display = event.target.checked ? 'flex' : 'none';
                     }
                 });
 
             } catch (error) {
-                const loader = document.getElementById('loader');
-                loader.textContent = `Erro ao carregar itens: ${error.message}. Verifique a URL do Script e o nome da página 'BaseDeItens' na planilha.`;
-                loader.style.color = 'red';
+                document.getElementById('loader').innerHTML = `<strong>Erro ao carregar itens:</strong> ${error.message}. <br>Verifique a URL do Script, as permissões e o nome da página 'BaseDeItens'.`;
+                document.getElementById('loader').style.color = 'red';
             }
         }
 
         async function submitForm() {
-            const nomeColaborador = document.getElementById('collaborator-name').value;
+            const nomeColaborador = document.getElementById('collaborator-name').value.trim();
             if (!nomeColaborador) {
                 alert('Por favor, digite seu nome.');
+                document.getElementById('collaborator-name').focus();
                 return;
             }
 
@@ -109,45 +106,54 @@
             const checkboxes = document.querySelectorAll('#item-list input[type="checkbox"]:checked');
             
             checkboxes.forEach(cb => {
-                const quantity = cb.nextElementSibling.nextElementSibling.value;
+                const quantity = cb.closest('.item').querySelector('input[type="number"]').value;
                 selectedItems.push({
                     codigo: cb.id,
                     nome: cb.dataset.nome,
-                    quantidade: parseInt(quantity, 10)
+                    quantidade: parseInt(quantity, 10) || 1
                 });
             });
 
             if (selectedItems.length === 0) {
-                alert('Selecione pelo menos um item.');
+                alert('Selecione pelo menos um item para registrar.');
                 return;
             }
 
-            const payload = {
-                nomeColaborador,
-                tipoMovimentacao,
-                items: selectedItems
-            };
+            // Etapa de confirmação
+            let confirmationMessage = `Confirma a movimentação de ${tipoMovimentacao} para "${nomeColaborador}"?\n\nItens:\n`;
+            selectedItems.forEach(item => {
+                confirmationMessage += `- ${item.quantidade}x ${item.nome}\n`;
+            });
+            
+            if (!window.confirm(confirmationMessage)) {
+                return;
+            }
 
+            const payload = { nomeColaborador, tipoMovimentacao, items: selectedItems };
             const btn = document.getElementById('submit-btn');
-            const messageDiv = document.getElementById('message');
+            
             btn.disabled = true;
             btn.textContent = 'Enviando...';
 
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Importante para contornar problemas de CORS simples
                     redirect: 'follow',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                 const result = await response.json(); // Tenta ler a resposta
+                if(result.status !== 'sucesso'){
+                  throw new Error(result.message || 'Ocorreu um erro desconhecido no servidor.');
+                }
 
-                // Como usamos no-cors, não podemos ler a resposta, mas confiamos que foi enviada.
-                showMessage('Dados enviados com sucesso! Verifique a planilha.', 'success');
+                showMessage('Movimentação registrada com sucesso!', 'success');
                 // Limpa o formulário
-                checkboxes.forEach(cb => cb.checked = false);
-                document.querySelectorAll('#item-list input[type="number"]').forEach(inp => inp.style.display = 'none');
-
+                 checkboxes.forEach(cb => {
+                    cb.checked = false;
+                    const quantityWrapper = cb.closest('.item').querySelector('.quantity-wrapper');
+                    quantityWrapper.style.display = 'none';
+                });
 
             } catch (error) {
                 showMessage(`Erro ao enviar: ${error.message}.`, 'error');
@@ -162,9 +168,9 @@
             messageDiv.textContent = text;
             messageDiv.className = type;
             messageDiv.style.display = 'block';
-            setTimeout(() => { messageDiv.style.display = 'none'; }, 4000);
+            setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
         }
 
     </script>
 </body>
-</html>```
+</html>
