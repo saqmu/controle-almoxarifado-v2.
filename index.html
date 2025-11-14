@@ -5,24 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Almoxarifado</title>
     <style>
-        body { font-family: sans-serif; padding: 1em; background-color: #f4f4f4; }
-        .container { max-width: 800px; margin: auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1, h2 { text-align: center; color: #333; }
+        :root {
+            --cor-primaria: #007FFF; /* Seu Azure */
+            --cor-secundaria: #32CD32; /* Seu LimeGreen */
+            --cor-detalhes: #AFEEEE; /* Seu PaleTurquoise */
+            --cor-branca: #FFFFFF; /* Seu Branco */
+            --cor-fundo-pagina: #f4f7f6;
+            --cor-texto: #333333;
+            --cor-erro: #f8d7da;
+            --cor-sucesso-fundo: #d4edda;
+            --cor-sucesso-texto: #155724;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding: 1em; 
+            background-color: var(--cor-fundo-pagina); 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background-color: var(--cor-branca); 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            border-top: 5px solid var(--cor-primaria); 
+        }
+        h1, h2 { 
+            text-align: center; 
+            color: var(--cor-primaria); 
+            font-weight: 600; 
+        }
+        input[type="text"] { 
+            border: 2px solid var(--cor-detalhes); 
+            border-radius: 5px; 
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus { 
+            border-color: var(--cor-primaria); 
+            outline: none;
+        }
         .controls { display: flex; justify-content: space-around; margin-bottom: 20px; align-items: center; }
         .item { display: flex; flex-wrap: wrap; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
         .item:last-child { border-bottom: none; }
         .item input[type="checkbox"] { margin-right: 15px; width: 20px; height: 20px; }
         .item .details { flex-grow: 1; }
-        .item .details strong { font-size: 1.1em; }
+        .item .details strong { font-size: 1.1em; color: var(--cor-texto); }
         .quantity-wrapper { margin-left: auto; padding-left: 15px; display: flex; align-items: center; }
         .quantity-wrapper label { margin-right: 5px; }
-        .quantity-wrapper input[type="number"] { width: 60px; text-align: center; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
-        #submit-btn { display: block; width: 100%; padding: 15px; font-size: 1.2em; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+        .quantity-wrapper input[type="number"] { width: 60px; text-align: center; padding: 5px; border: 1px solid var(--cor-detalhes); border-radius: 4px; font-size: 1em; }
+        #submit-btn { 
+            display: block; 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 1.2em; 
+            background-color: var(--cor-secundaria); 
+            color: var(--cor-branca); 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin-top: 20px; 
+            font-weight: bold;
+            transition: background-color 0.2s; 
+        }
+        #submit-btn:hover { 
+            background-color: #2CB32C; /* Um pouco mais escuro que LimeGreen */
+        }
         #message { text-align: center; padding: 10px; margin-top: 15px; border-radius: 5px; display: none; }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
-        #history-container { margin-top: 30px; border-top: 2px solid #ccc; padding-top: 15px; }
-        #history-container h2 { margin-bottom: 10px; }
+        .success { background-color: var(--cor-sucesso-fundo); color: var(--cor-sucesso-texto); }
+        .error { background-color: var(--cor-erro); color: #721c24; }
+        #history-container { margin-top: 30px; border-top: 2px solid var(--cor-detalhes); padding-top: 15px; }
         .history-item { font-size: 0.9em; padding: 5px; border-bottom: 1px solid #f0f0f0; }
         .history-item:last-child { border-bottom: none; }
     </style>
@@ -32,7 +85,8 @@
         <h1>Controle de Almoxarifado</h1>
         <div id="loader">Carregando itens...</div>
         <div id="app" style="display:none;">
-            <input type="text" id="collaborator-name" placeholder="Digite seu nome AQUI" required style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; font-size: 1.1em; text-align: center;">
+            <input type="text" id="collaborator-name" placeholder="Seu Nome (quem está registrando)" required style="width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; font-size: 1.1em; text-align: center;">
+            <input type="text" id="destinatario-input" placeholder="Destinatário (para quem é o material)" required style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; font-size: 1.1em; text-align: center;">
             <div class="controls">
                 <input type="radio" id="saida" name="movimentacao" value="Saída" checked>
                 <label for="saida">Saída de Material</label>
@@ -52,8 +106,8 @@
     </div>
 
     <script>
-        // ** COLOQUE AQUI A SUA URL MAIS RECENTE, GERADA PELO SCRIPT NOVO **
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIPIcSo20UWdJ-q_gxg5wSdZ-olLm5FaN2Zhn-nvHt5rOGYwnTODC-a66V2GW7fSKi/exec";
+        // ** COLOQUE AQUI A SUA URL MAIS RECENTE, GERADA PELO SCRIPT COM A FUNÇÃO 'DESTINATÁRIO' **
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEuTRC6W8r-UzIfJdB8qW3uIFCTEQ7cp_V-rg5nlMjWZA8OVw9Gzb98j6vxVJ5UDdt/exec";
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchItems();
@@ -96,7 +150,7 @@
                     }
                 });
             } catch (error) {
-                document.getElementById('loader').innerHTML = `<strong>Erro:</strong> ${error.message}. Verifique a URL do Script, permissões e nomes das páginas.`;
+                document.getElementById('loader').innerHTML = `<strong>Erro:</strong> ${error.message}.`;
                 document.getElementById('loader').style.color = 'red';
             }
         }
@@ -111,27 +165,28 @@
 
                 historyList.innerHTML = '';
                 if (data.length === 0) {
-                    historyList.innerHTML = '<p>Nenhuma movimentação registrada ainda.</p>';
+                    historyList.innerHTML = '<p>Nenhuma movimentação.</p>';
                     return;
                 }
                 data.forEach(row => {
-                    const [timestamp, codigo, nome, tipo, qtd, colaborador] = row;
-                    const date = new Date(timestamp).toLocaleString('pt-BR');
+                    const [timestamp, codigo, nome, tipo, qtd, colaborador, destinatario] = row;
+                    const date = new Date(timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                     const historyDiv = document.createElement('div');
                     historyDiv.className = 'history-item';
-                    historyDiv.innerHTML = `<strong>${colaborador}</strong>: ${tipo} de ${qtd}x ${nome} <small>(${date})</small>`;
+                    historyDiv.innerHTML = `<strong>${colaborador}</strong> para <strong>${destinatario || 'N/A'}</strong>: ${qtd}x ${nome} <small>(${date})</small>`;
                     historyList.appendChild(historyDiv);
                 });
             } catch (error) {
-                historyList.innerHTML = `<p style="color:red;">Erro ao carregar histórico: ${error.message}</p>`;
+                historyList.innerHTML = `<p style="color:red;">Erro ao carregar histórico.</p>`;
             }
         }
 
         async function submitForm() {
             const nomeColaborador = document.getElementById('collaborator-name').value.trim();
-            if (!nomeColaborador) {
-                alert('Por favor, digite seu nome.');
-                document.getElementById('collaborator-name').focus();
+            const destinatario = document.getElementById('destinatario-input').value.trim();
+
+            if (!nomeColaborador || !destinatario) {
+                alert('Por favor, preencha o seu nome e o nome do destinatário.');
                 return;
             }
 
@@ -149,40 +204,39 @@
             });
 
             if (selectedItems.length === 0) {
-                alert('Selecione pelo menos um item para registrar.');
+                alert('Selecione pelo menos um item.');
                 return;
             }
 
-            let confirmationMessage = `Confirma a movimentação de ${tipoMovimentacao} para "${nomeColaborador}"?\n\nItens:\n`;
+            let confirmationMessage = `Confirma a movimentação de ${tipoMovimentacao} para "${destinatario}"?\nRegistrado por: ${nomeColaborador}\n\nItens:\n`;
             selectedItems.forEach(item => { confirmationMessage += `- ${item.quantidade}x ${item.nome}\n`; });
             
             if (!window.confirm(confirmationMessage)) { return; }
 
-            const payload = { nomeColaborador, tipoMovimentacao, items: selectedItems };
+            const payload = { nomeColaborador, tipoMovimentacao, items: selectedItems, destinatario };
             const btn = document.getElementById('submit-btn');
-            
+
             btn.disabled = true;
             btn.textContent = 'Enviando...';
 
             try {
-                // Nova lógica de envio via GET
                 const dataString = encodeURIComponent(JSON.stringify(payload));
                 const url = `${SCRIPT_URL}?data=${dataString}`;
-
                 const response = await fetch(url);
                 
                 const result = await response.json();
                 if (result.status !== 'sucesso') {
-                    throw new Error(result.message || 'Ocorreu um erro no servidor.');
+                    throw new Error(result.message || 'Erro no servidor.');
                 }
 
-                showMessage('Movimentação registrada com sucesso!', 'success');
+                showMessage('Registrado com sucesso!', 'success');
                 checkboxes.forEach(cb => {
                     cb.checked = false;
                     const quantityWrapper = cb.closest('.item').querySelector('.quantity-wrapper');
                     quantityWrapper.style.display = 'none';
                 });
                 
+                document.getElementById('destinatario-input').value = '';
                 fetchHistory();
 
             } catch (error) {
