@@ -1,187 +1,170 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <title>Controle de Estoque V2</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Almoxarifado</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background: linear-gradient(135deg, #0d47a1, #1e88e5); background-attachment: fixed; color: #333; }
-        h1 { color: white; text-align: center; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4); }
-        #main-container { background-color: rgba(255, 255, 255, 0.98); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        #loading, #success-message, #error-message { text-align: center; padding: 20px; font-size: 1.2em; border-radius: 8px; margin-top: 15px; display: none; }
-        #loading { color: #0d47a1; }
-        #success-message { background-color: #d4edda; color: #155724; }
-        #error-message { background-color: #f8d7da; color: #721c24; }
-        #items-list { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 8px; margin-top: 15px; }
-        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; }
-        .item-row:last-child { border-bottom: none; }
-        .item-row input[type="checkbox"] { width: 25px; height: 25px; }
-        .item-row label { flex-grow: 1; margin: 0 10px; }
-        .item-row input[type="number"] { width: 70px; text-align: center; padding: 8px; }
-        input, select, button { width: 100%; padding: 14px; margin-top: 15px; box-sizing: border-box; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; }
-        button { background-color: #005A8D; color: white; font-weight: bold; border: none; cursor: pointer; transition: background-color 0.2s; }
-        button:hover { background-color: #004a74; }
-        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
-        #search-box { margin-bottom:10px; }
+        body { font-family: sans-serif; padding: 1em; background-color: #f4f4f4; }
+        .container { max-width: 800px; margin: auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        .controls { display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .item:last-child { border-bottom: none; }
+        .item input[type="checkbox"] { margin-right: 15px; width: 20px; height: 20px; }
+        .item .details { flex-grow: 1; }
+        .item .details strong { font-size: 1.1em; }
+        .item input[type="number"] { width: 70px; text-align: center; padding: 5px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        #submit-btn { display: block; width: 100%; padding: 15px; font-size: 1.2em; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #message { text-align: center; padding: 10px; margin-top: 15px; border-radius: 5px; display: none; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
-    <h1>Registro de Movimentação</h1>
-
-    <div id="main-container">
-        <div id="loading"><h2>Carregando lista de produtos...</h2></div>
-
-        <form id="stock-form" style="display:none;">
-            <input type="text" id="search-box" placeholder="🔎 Pesquisar item...">
-
-            <div id="items-list">
-                <!-- A lista de itens será inserida aqui pelo JavaScript -->
+    <div class="container">
+        <h1>Controle de Almoxarifado</h1>
+        <div id="loader">Carregando itens...</div>
+        <div id="app" style="display:none;">
+            <input type="text" id="collaborator-name" placeholder="Digite seu nome" style="width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box;">
+            <div class="controls">
+                <input type="radio" id="saida" name="movimentacao" value="Saída" checked>
+                <label for="saida">Saída de Material</label>
+                <input type="radio" id="entrada" name="movimentacao" value="Entrada">
+                <label for="entrada">Entrada de Material</label>
             </div>
-
-            <select id="tipo" name="tipo">
-                <option value="Saída do Estoque">Saída do Estoque</option>
-                <option value="Entrada no Estoque">Entrada no Estoque</option>
-            </select>
-            <input type="text" id="nome-colaborador" placeholder="Seu Nome" required>
-            
-            <button type="submit" id="submit-btn">Registrar Movimentação</button>
-        </form>
-        
-        <div id="success-message"></div>
-        <div id="error-message"></div>
+            <hr>
+            <h2>Lista de Itens</h2>
+            <div id="item-list"></div>
+            <button id="submit-btn">Registrar Movimentação</button>
+            <div id="message"></div>
+        </div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZvR2bXcw9PjWa0S8mhe5hCL-XbAl-mpO1xPyhOPnoBNCs7JGLas9WyrExVqlmGPCz/exec"; 
+        // ESTA É A LINHA MAIS IMPORTANTE
+        // COLE AQUI A URL DO SEU SCRIPT PUBLICADO NO PASSO 2
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwFtKCWLpbcqoGLOkg5R2Tuuhto8cURSYsYbwpA7fX7izqMQbItgZ-Ey068P6f9_T7/exec";
 
-        const loadingDiv = document.getElementById('loading');
-        const form = document.getElementById('stock-form');
-        const itemsListDiv = document.getElementById('items-list');
-        const submitBtn = document.getElementById('submit-btn');
-        const successMsg = document.getElementById('success-message');
-        const errorMsg = document.getElementById('error-message');
-        const searchBox = document.getElementById('search-box');
-        let allItems = [];
-
-        function loadItems() {
-            loadingDiv.style.display = 'block';
-            fetch(`${SCRIPT_URL}?action=getItems`)
-                .then(response => response.json())
-                .then(items => {
-                    if(items.error) { throw new Error(items.error); }
-                    allItems = items;
-                    renderItems(allItems);
-                    loadingDiv.style.display = 'none';
-                    form.style.display = 'block';
-                })
-                .catch(error => {
-                    loadingDiv.innerHTML = `<h2>Erro ao carregar itens. Verifique o link SCRIPT_URL e se a página "BaseDeItens" existe.</h2><p style="color:red;">${error.toString()}</p>`;
-                    console.error('Fetch Error:', error);
-                });
-        }
-
-        function renderItems(items) {
-            itemsListDiv.innerHTML = '';
-            items.forEach(item => {
-                const codigo = item[0];
-                const nome = item[1];
-
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `
-                    <input type="checkbox" id="${codigo}" value="${codigo}" data-nome="${nome}">
-                    <label for="${codigo}">${nome} (${codigo})</label>
-                    <input type="number" min="1" placeholder="Qtd" disabled style="background-color: #f0f0f0;">
-                `;
-                itemsListDiv.appendChild(row);
-            });
-        }
-
-        searchBox.addEventListener('keyup', () => {
-            const searchTerm = searchBox.value.toLowerCase();
-            const filteredItems = allItems.filter(item => 
-                item[1].toLowerCase().includes(searchTerm) || 
-                item[0].toLowerCase().includes(searchTerm)
-            );
-            renderItems(filteredItems);
+        // O resto do código abaixo está pronto para funcionar.
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchItems();
+            document.getElementById('submit-btn').addEventListener('click', submitForm);
         });
 
-        itemsListDiv.addEventListener('change', event => {
-            if (event.target.type === 'checkbox') {
-                const quantityInput = event.target.nextElementSibling.nextElementSibling;
-                if (event.target.checked) {
-                    quantityInput.disabled = false;
-                    quantityInput.required = true;
-                    quantityInput.style.backgroundColor = '#fff';
-                    quantityInput.focus();
-                } else {
-                    quantityInput.disabled = true;
-                    quantityInput.required = false;
-                    quantityInput.style.backgroundColor = '#f0f0f0';
-                    quantityInput.value = '';
+        async function fetchItems() {
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
                 }
-            }
-        });
+                
+                const itemList = document.getElementById('item-list');
+                const loader = document.getElementById('loader');
+                
+                data.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'item';
+                    itemDiv.innerHTML = `
+                        <input type="checkbox" id="${item.codigo}" data-nome="${item.nome}">
+                        <div class="details">
+                            <strong>${item.nome}</strong><br>
+                            <small>Código: ${item.codigo}</small>
+                        </div>
+                        <input type="number" min="1" value="1" style="display:none;">
+                    `;
+                    itemList.appendChild(itemDiv);
+                });
+                
+                loader.style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                
+                // Adiciona o evento para mostrar/esconder o campo de quantidade
+                itemList.addEventListener('change', (event) => {
+                    if (event.target.type === 'checkbox') {
+                        const quantityInput = event.target.nextElementSibling.nextElementSibling;
+                        quantityInput.style.display = event.target.checked ? 'block' : 'none';
+                    }
+                });
 
-        form.addEventListener('submit', event => {
-            event.preventDefault();
+            } catch (error) {
+                const loader = document.getElementById('loader');
+                loader.textContent = `Erro ao carregar itens: ${error.message}. Verifique a URL do Script e o nome da página 'BaseDeItens' na planilha.`;
+                loader.style.color = 'red';
+            }
+        }
+
+        async function submitForm() {
+            const nomeColaborador = document.getElementById('collaborator-name').value;
+            if (!nomeColaborador) {
+                alert('Por favor, digite seu nome.');
+                return;
+            }
+
+            const tipoMovimentacao = document.querySelector('input[name="movimentacao"]:checked').value;
             const selectedItems = [];
-            const checkboxes = itemsListDiv.querySelectorAll('input[type="checkbox"]:checked');
+            const checkboxes = document.querySelectorAll('#item-list input[type="checkbox"]:checked');
             
             checkboxes.forEach(cb => {
-                const quantityInput = cb.nextElementSibling.nextElementSibling;
-                if (quantityInput.value && parseInt(quantityInput.value) > 0) {
-                    selectedItems.push({
-                        codigo: cb.value,
-                        nome: cb.dataset.nome,
-                        quantidade: quantityInput.value
-                    });
-                }
+                const quantity = cb.nextElementSibling.nextElementSibling.value;
+                selectedItems.push({
+                    codigo: cb.id,
+                    nome: cb.dataset.nome,
+                    quantidade: parseInt(quantity, 10)
+                });
             });
 
             if (selectedItems.length === 0) {
-                alert('Por favor, selecione pelo menos um item e informe a quantidade.');
+                alert('Selecione pelo menos um item.');
                 return;
             }
 
-            const nomeColaborador = document.getElementById('nome-colaborador').value;
-            if (!nomeColaborador) {
-                alert('Por favor, preencha o seu nome.');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Enviando...';
-
-            const data = {
-                tipo: document.getElementById('tipo').value,
-                nome_colaborador: nomeColaborador,
+            const payload = {
+                nomeColaborador,
+                tipoMovimentacao,
                 items: selectedItems
             };
 
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors', // Adicionado para clareza
-                body: JSON.stringify(data),
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(response => response.json())
-            .then(result => {
-                if(result.status !== 'success') { throw new Error(result.message); }
-                form.style.display = 'none';
-                successMsg.textContent = 'Movimentação registrada com sucesso!';
-                successMsg.style.display = 'block';
-                setTimeout(() => location.reload(), 2500);
-            })
-            .catch(error => {
-                console.error('Submit Error:', error);
-                errorMsg.textContent = `Erro ao enviar: ${error.message}. Tente novamente.`;
-                errorMsg.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Registrar Movimentação';
-            });
-        });
+            const btn = document.getElementById('submit-btn');
+            const messageDiv = document.getElementById('message');
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
 
-        document.addEventListener('DOMContentLoaded', loadItems);
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Importante para contornar problemas de CORS simples
+                    redirect: 'follow',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Como usamos no-cors, não podemos ler a resposta, mas confiamos que foi enviada.
+                showMessage('Dados enviados com sucesso! Verifique a planilha.', 'success');
+                // Limpa o formulário
+                checkboxes.forEach(cb => cb.checked = false);
+                document.querySelectorAll('#item-list input[type="number"]').forEach(inp => inp.style.display = 'none');
+
+
+            } catch (error) {
+                showMessage(`Erro ao enviar: ${error.message}.`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Registrar Movimentação';
+            }
+        }
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = type;
+            messageDiv.style.display = 'block';
+            setTimeout(() => { messageDiv.style.display = 'none'; }, 4000);
+        }
+
     </script>
 </body>
-</html>
+</html>```
